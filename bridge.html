@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>PeerJS Bridge</title></head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+/**
+ * PeerJS signaling bridge — runs inside an iframe.
+ *
+ * This page is hosted on a domain WITHOUT restrictive CSP (e.g. GitHub Pages).
+ * It handles all PeerJS signaling and WebRTC negotiation, communicating with
+ * the parent Neocities page via postMessage.
+ *
+ * Protocol (parent ↔ bridge):
+ *   parent → bridge:
+ *     { type: 'init' }                     — create Peer, connect to signaling server
+ *     { type: 'connect', peerId: '...' }   — connect to a remote peer
+ *     { type: 'send', data: ... }          — send data over the connection
+ *     { type: 'destroy' }                  — tear down peer
+ *
+ *   bridge → parent:
+ *     { type: 'ready' }                    — bridge loaded
+ *     { type: 'open', peerId: '...' }      — connected to signaling server, got ID
+ *     { type: 'connection', remotePeerId }  — incoming connection established
+ *     { type: 'connected', remotePeerId }   — outgoing connection established
+ *     { type: 'data', data: ..., from }     — received data from peer
+ *     { type: 'error', error: '...' }       — error occurred
+ *     { type: 'disconnected' }              — connection closed
+ */
+
+let peer = null;
+let conn = null;
+const parentOrigin = '*'; // Accept messages from any origin (the Neocities page)
+
+function post(msg) {
+  window.parent.postMessage(msg, parentOrigin);
+}
+
+function setupConnection(c) {
+  conn = c;
+  c.on('open', () => {
+    post({ type: 'connected', remotePeerId: c.peer });
+  });
+  c.on('data', data => {
+    post({ type: 'data', data, from: c.peer });
+  });
+  c.on('close', () => {
+    post({ type: 'disconnected' });
+  });
+  c.on('error', err => {
+    post({ type: 'error', error: 'conn: ' + (err.message || String(err)) });
+  });
+}
+
+window.addEventListener('message', e => {
+  const msg = e.data;
+  if (!msg || !msg.type) return;
+
+  switch (msg.type) {
+    case 'init': {
+      if (peer) peer.destroy();
+      peer = new Peer();
+      peer.on('open', id => {
+        post({ type: 'open', peerId: id });
+      });
+      peer.on('connection', incoming => {
+        setupConnection(incoming);
+        // Also notify once the incoming connection is open
+        incoming.on('open', () => {
+          post({ type: 'connection', remotePeerId: incoming.peer });
+        });
+      });
+      peer.on('error', err => {
+        post({ type: 'error', error: err.type + ': ' + (err.message || String(err)) });
+      });
+      peer.on('disconnected', () => {
+        post({ type: 'disconnected' });
+      });
+      break;
+    }
+    case 'connect': {
+      if (!peer) { post({ type: 'error', error: 'No peer instance' }); return; }
+      const c = peer.connect(msg.peerId);
+      setupConnection(c);
+      break;
+    }
+    case 'send': {
+      if (!conn) { post({ type: 'error', error: 'No connection' }); return; }
+      conn.send(msg.data);
+      break;
+    }
+    case 'destroy': {
+      if (peer) { peer.destroy(); peer = null; conn = null; }
+      break;
+    }
+  }
+});
+
+// Signal that bridge is loaded and ready
+post({ type: 'ready' });
+</script>
+</body>
+</html>
