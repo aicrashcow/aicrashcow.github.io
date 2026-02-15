@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gatze streicheln</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 100%;
+            height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+        }
+
+        .container {
+            text-align: center;
+        }
+
+        h1 {
+            color: white;
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .game-area {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 40px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        .cat {
+            font-size: 120px;
+            cursor: pointer;
+            user-select: none;
+            transition: transform 0.1s ease;
+            display: inline-block;
+            margin: 20px;
+        }
+
+        .cat:hover {
+            transform: scale(1.05);
+        }
+
+        .cat.petted {
+            animation: petAnimation 0.5s ease;
+        }
+
+        @keyframes petAnimation {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+        }
+
+        .purr-text {
+            color: #fff;
+            font-size: 1.5em;
+            margin-top: 20px;
+            min-height: 40px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .purr-text.show {
+            opacity: 1;
+            animation: purrFloat 2s ease-out;
+        }
+
+        @keyframes purrFloat {
+            0% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+        }
+
+        .stats {
+            color: white;
+            font-size: 1.2em;
+            margin-top: 30px;
+        }
+
+        .pet-count {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px 30px;
+            border-radius: 10px;
+            display: inline-block;
+            margin: 10px;
+        }
+
+        .happiness {
+            display: inline-block;
+            margin: 10px;
+        }
+
+        .happiness-bar {
+            width: 200px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .happiness-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff6b6b, #ffd93d, #6bcf7f);
+            width: 100%;
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+
+        .instructions {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 1em;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Gatze streicheln 🐱</h1>
+        <div class="game-area">
+            <div class="cat" id="cat">🐱</div>
+            <div class="purr-text" id="purrText">Purrrrr... 😻</div>
+
+            <div class="stats">
+                <div class="pet-count">
+                    Pets: <span id="petCount">0</span>
+                </div>
+                <div class="happiness">
+                    Happiness
+                    <div class="happiness-bar">
+                        <div class="happiness-fill" id="happinessFill"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="instructions">
+            Click or tap the cat to pet it! 👆
+        </div>
+    </div>
+
+    <script>
+        const cat = document.getElementById('cat');
+        const purrText = document.getElementById('purrText');
+        const petCount = document.getElementById('petCount');
+        const happinessFill = document.getElementById('happinessFill');
+
+        let petCounter = 0;
+        let happiness = 100;
+        let lastPetTime = 0;
+
+        // Create or get audio context for purr sound
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playPurrSound() {
+            try {
+                const now = audioContext.currentTime;
+
+                // Create multiple oscillators for a richer purr sound
+                const osc1 = audioContext.createOscillator();
+                const osc2 = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+
+                osc1.frequency.value = 25;
+                osc2.frequency.value = 35;
+
+                osc1.connect(gain);
+                osc2.connect(gain);
+                gain.connect(audioContext.destination);
+
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+
+                osc1.start(now);
+                osc2.start(now);
+                osc1.stop(now + 0.5);
+                osc2.stop(now + 0.5);
+            } catch (e) {
+                console.log('Audio playback not available');
+            }
+        }
+
+        function petCat(e) {
+            const now = Date.now();
+
+            // Prevent rapid clicking from breaking animations
+            if (now - lastPetTime < 100) return;
+            lastPetTime = now;
+
+            petCounter++;
+            petCount.textContent = petCounter;
+
+            // Increase happiness (max 100)
+            happiness = Math.min(100, happiness + 10);
+            happinessFill.style.width = happiness + '%';
+
+            // Add animation class
+            cat.classList.remove('petted');
+            void cat.offsetWidth; // Trigger reflow to restart animation
+            cat.classList.add('petted');
+
+            // Show purr text
+            purrText.classList.remove('show');
+            void purrText.offsetWidth; // Trigger reflow
+            purrText.textContent = getPurrMessage();
+            purrText.classList.add('show');
+
+            // Play purr sound
+            playPurrSound();
+        }
+
+        function getPurrMessage() {
+            const messages = [
+                'Purrrrr... 😻',
+                'Purr purr 😸',
+                'Mmmrow! 🐱',
+                'Purrrfect! 😻',
+                'Meow meow 😺',
+                'Thrrrummmm 😻'
+            ];
+            return messages[Math.floor(Math.random() * messages.length)];
+        }
+
+        // Decrease happiness over time
+        setInterval(() => {
+            if (happiness > 0) {
+                happiness -= 1;
+                happinessFill.style.width = happiness + '%';
+            }
+        }, 1000);
+
+        // Event listeners
+        cat.addEventListener('click', petCat);
+        cat.addEventListener('touchstart', petCat);
+
+        // Prevent double-tap zoom on mobile
+        cat.addEventListener('touchend', (e) => {
+            e.preventDefault();
+        });
+    </script>
+</body>
+</html>
