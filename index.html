@@ -14,13 +14,21 @@
         body {
             width: 100%;
             height: 100vh;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(45deg, #ff6b6b, #feca57, #48dbfb, #ff9ff3, #54a0ff);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            font-family: 'Arial', sans-serif;
+            font-family: 'Comic Sans MS', 'Arial Black', sans-serif;
             overflow: hidden;
+        }
+
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
         }
 
         .container {
@@ -29,9 +37,19 @@
 
         h1 {
             color: white;
-            font-size: 2.5em;
+            font-size: 3.5em;
             margin-bottom: 20px;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            text-shadow: 3px 3px 0px #ff6348,
+                         6px 6px 0px #ff9ff3,
+                         9px 9px 20px rgba(0, 0, 0, 0.5);
+            font-weight: 900;
+            letter-spacing: 2px;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
         }
 
         .game-area {
@@ -43,49 +61,59 @@
         }
 
         .cat {
-            font-size: 120px;
+            font-size: 180px;
             cursor: pointer;
             user-select: none;
             transition: transform 0.1s ease;
             display: inline-block;
             margin: 20px;
+            filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.5));
         }
 
         .cat:hover {
-            transform: scale(1.05);
+            transform: scale(1.1) rotate(-5deg);
         }
 
         .cat.petted {
-            animation: petAnimation 0.5s ease;
+            animation: petAnimation 0.6s ease;
         }
 
         @keyframes petAnimation {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.15); }
+            0%, 100% { transform: scale(1) rotate(0deg); }
+            25% { transform: scale(1.2) rotate(5deg); }
+            50% { transform: scale(1.25) rotate(-5deg); }
+            75% { transform: scale(1.2) rotate(3deg); }
         }
 
         .purr-text {
             color: #fff;
-            font-size: 1.5em;
+            font-size: 2.2em;
             margin-top: 20px;
-            min-height: 40px;
+            min-height: 60px;
             opacity: 0;
             transition: opacity 0.3s ease;
+            font-weight: bold;
+            text-shadow: 2px 2px 0px #ff6348,
+                         4px 4px 0px #ff9ff3;
+            letter-spacing: 1px;
         }
 
         .purr-text.show {
             opacity: 1;
-            animation: purrFloat 2s ease-out;
+            animation: purrFloat 2.5s ease-out;
         }
 
         @keyframes purrFloat {
             0% {
                 opacity: 1;
-                transform: translateY(0);
+                transform: translateY(0) scale(1);
+            }
+            50% {
+                transform: translateY(-30px) scale(1.1);
             }
             100% {
                 opacity: 0;
-                transform: translateY(-50px);
+                transform: translateY(-80px) scale(1);
             }
         }
 
@@ -96,11 +124,14 @@
         }
 
         .pet-count {
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.3);
             padding: 15px 30px;
             border-radius: 10px;
             display: inline-block;
             margin: 10px;
+            font-weight: bold;
+            font-size: 1.3em;
+            border: 3px solid rgba(255, 255, 255, 0.6);
         }
 
         .happiness {
@@ -172,26 +203,56 @@
         function playPurrSound() {
             try {
                 const now = audioContext.currentTime;
+                const duration = 0.8;
 
-                // Create multiple oscillators for a richer purr sound
+                // Create base purr tone
                 const osc1 = audioContext.createOscillator();
                 const osc2 = audioContext.createOscillator();
-                const gain = audioContext.createGain();
+                const osc3 = audioContext.createOscillator();
 
-                osc1.frequency.value = 25;
-                osc2.frequency.value = 35;
+                // Main gain control
+                const mainGain = audioContext.createGain();
 
-                osc1.connect(gain);
-                osc2.connect(gain);
-                gain.connect(audioContext.destination);
+                // Tremolo effect for purring vibration
+                const tremolo = audioContext.createOscillator();
+                const tremoloGain = audioContext.createGain();
 
-                gain.gain.setValueAtTime(0.1, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                // Set frequencies for a rich purr
+                osc1.frequency.value = 40;  // Deep purr
+                osc2.frequency.value = 60;  // Mid purr
+                osc3.frequency.value = 80;  // High purr
 
+                // Tremolo creates the "purr" vibration at 20Hz
+                tremolo.frequency.value = 20;
+
+                // Connect oscillators through tremolo for vibration effect
+                osc1.connect(tremoloGain);
+                osc2.connect(tremoloGain);
+                osc3.connect(tremoloGain);
+                tremolo.connect(tremoloGain.gain);
+
+                tremoloGain.connect(mainGain);
+                mainGain.connect(audioContext.destination);
+
+                // Set loud initial volume (0.3 is very loud for web audio)
+                mainGain.gain.setValueAtTime(0.3, now);
+                mainGain.gain.exponentialRampToValueAtTime(0.05, now + duration);
+
+                // Tremolo amplitude
+                tremoloGain.gain.setValueAtTime(0.5, now);
+                tremoloGain.gain.linearRampToValueAtTime(0.3, now + duration);
+
+                // Start all oscillators
                 osc1.start(now);
                 osc2.start(now);
-                osc1.stop(now + 0.5);
-                osc2.stop(now + 0.5);
+                osc3.start(now);
+                tremolo.start(now);
+
+                // Stop all oscillators
+                osc1.stop(now + duration);
+                osc2.stop(now + duration);
+                osc3.stop(now + duration);
+                tremolo.stop(now + duration);
             } catch (e) {
                 console.log('Audio playback not available');
             }
@@ -228,12 +289,16 @@
 
         function getPurrMessage() {
             const messages = [
-                'Purrrrr... 😻',
-                'Purr purr 😸',
-                'Mmmrow! 🐱',
-                'Purrrfect! 😻',
-                'Meow meow 😺',
-                'Thrrrummmm 😻'
+                'PURRRRR!!! 😻',
+                'OMG YES!!! 😸',
+                'MOAR PETS!!! 🐱',
+                'PURRRFECT!!! 😻',
+                'YAAAS!!! 😺',
+                'THRRRUMMMMM!!! 😻',
+                'I LOVE THIS!!! 😻',
+                'BEST DAY EVER!!! 😸',
+                'SO HAPPY!!! 🐱',
+                'NEVER STOP!!! 😻'
             ];
             return messages[Math.floor(Math.random() * messages.length)];
         }
